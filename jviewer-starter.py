@@ -10,6 +10,8 @@ powerUrl = "http://{0}/rpc/hostctl.asp?WEBVAR_POWER_CMD={1}&WEBVAR_FORCE_BIOS={2
 jarBase = "http://{0}/Java/release/"
 mainClass = "com.ami.kvm.jviewer.JViewer"
 
+java_bin="java"
+
 import argparse
 from urllib.request import urlopen, urlretrieve, Request
 from urllib.parse import urlencode
@@ -77,7 +79,7 @@ class bmcRemote:
             # The server sends a wrong Content-length header. We just ignore it
             jnlpResponse = e.partial.decode("utf-8")
 
-        args = ["java"]
+        args = [ java_bin ]
         args.append("-Djava.library.path=" + self.path)
         args.append("-cp")
         args.append(os.path.join(self.path, "*"))
@@ -163,7 +165,10 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--server')
     parser.add_argument('-u', '--user')
     parser.add_argument('-p', '--password')
+    parser.add_argument('-j', '--java')
     args = parser.parse_args()
+    if args.java is not None:
+        java_bin=args.java
     gui = bmcGUI(args)
     #bmc = bmcRemote(server=args.server)
     #bmc.getsession(args.user, args.password)
