@@ -1,6 +1,8 @@
 JViewer
 =======
 
+![main_window](screenshot.png)
+
 Simple jviewer app, supports PowerOFF and iKVM.
 
 Tested on s2400sc.
