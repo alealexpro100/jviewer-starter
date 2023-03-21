@@ -41,6 +41,8 @@ class bmcRemote:
         if system == "Linux":
             natives = "Linux_x86_"
             path = os.environ.get("XDG_DATA_HOME")
+            if path is None:
+                path = os.path.join(os.environ.get("HOME"),".local","share")
         elif system == "Windows":
             natives = "Win"
             path = os.environ.get("LOCALAPPDATA")
@@ -96,6 +98,7 @@ class bmcGUI:
     def __init__(self, args) -> None:
         bmc = None
         self.root = Tk()
+        self.root.title('Old iKVM')
         self.server_input = StringVar(self.root)
         if args.server is not None:
             self.server_input.set(args.server)
