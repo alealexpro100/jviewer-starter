@@ -137,7 +137,7 @@ class bmcGUI:
         self.bt_reset_bios=ttk.Button(frm, text="Reset to BIOS", command=lambda: self.bmc.do_action(3, 1))
         self.bt_reset_bios.grid(column=4, row=3)
         self.bt_reset_bios.state(["disabled"])
-        self.bt_shutdown=ttk.Button(frm, text="Shutdown", command=lambda: self.bmc.do_action(3, 1))
+        self.bt_shutdown=ttk.Button(frm, text="Shutdown", command=lambda: self.bmc.do_action(5, 0))
         self.bt_shutdown.grid(column=4, row=4)
         self.bt_shutdown.state(["disabled"])
         ttk.Button(frm, text="Quit", command=self.root.destroy).grid(column=0, row=4)
@@ -174,7 +174,3 @@ if __name__ == "__main__":
     if args.java is not None:
         java_bin=args.java
     gui = bmcGUI(args)
-    #bmc = bmcRemote(server=args.server)
-    #bmc.getsession(args.user, args.password)
-    #bmc.update_jars()
-    #bmc.run_jviewer()
