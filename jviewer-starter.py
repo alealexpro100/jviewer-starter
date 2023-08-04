@@ -13,6 +13,7 @@ mainClass = "com.ami.kvm.jviewer.JViewer"
 java_bin="java"
 
 import argparse
+from urllib.error import HTTPError
 from urllib.request import urlopen, urlretrieve, Request
 from urllib.parse import urlencode
 from http.client import IncompleteRead
@@ -28,12 +29,13 @@ class bmcRemote:
         self.sessionCookie=None
         self.path=None
     
-    def getsession(self, username: str, password: str):
+    def getSession(self, username: str, password: str):
         credentials = {"WEBVAR_USERNAME": username, "WEBVAR_PASSWORD": password}
         loginRequest = Request(loginUrl.format(self.server))
         loginRequest.data = urlencode(credentials).encode("utf-8")
         loginResponse = urlopen(loginRequest).read().decode("utf-8")
         self.sessionCookie = re.search("'SESSION_COOKIE' : '([a-zA-Z0-9]+)'", loginResponse).group(1)
+        self.csrfToken = re.search("'CSRF_TOKEN' : '([a-zA-Z0-9]+)'", loginResponse).group(1)
         
     def update_jars(self):
         base = jarBase.format(self.server)
@@ -50,7 +52,7 @@ class bmcRemote:
             natives = "Mac"
             path = os.path.expanduser('~/Library/Application Support')
         else:
-            raise Exception("OS not supported: " + system)
+            raise SystemExit("OS not supported: " + system)
         natives += platform.architecture()[0][:2] + ".jar"
         path = os.path.join(path, "jviewer-starter", self.server)
         self.path = path
@@ -60,13 +62,12 @@ class bmcRemote:
         for jar in ["JViewer.jar", "JViewer-SOC.jar", natives]:
             jar_path = os.path.join(path, jar)
             if not os.path.exists(jar_path):
-                print("downloading %s -> %s" % (base + jar, jar_path))
+                print(f"downloading {base + jar} -> {jar_path}")
                 try:
                     urlretrieve(base + jar, jar_path)
-                except Exception as e:
-                    if jar=="JViewer-SOC.jar" and e.code==404:
+                except HTTPError as err:
+                    if jar=="JViewer-SOC.jar" and err.code==404:
                         print("Ignoring "+jar)
-                        pass
                 if jar == natives:
                     print("extracting %s" % jar_path)
                     with zipfile.ZipFile(jar_path, 'r') as natives_jar:
@@ -74,12 +75,12 @@ class bmcRemote:
         
     def run_jviewer(self):
         jnlpRequest = Request(jnlpUrl.format(self.server))
-        jnlpRequest.add_header("Cookie", "SessionCookie=%s" % self.sessionCookie)
+        jnlpRequest.add_header("Cookie", f"SessionCookie={self.sessionCookie}")
         try:
             jnlpResponse = urlopen(jnlpRequest).read().decode("utf-8")
-        except IncompleteRead as e:
+        except IncompleteRead as err:
             # The server sends a wrong Content-length header. We just ignore it
-            jnlpResponse = e.partial.decode("utf-8")
+            jnlpResponse = err.partial.decode("utf-8")
 
         args = [ java_bin ]
         args.append("-Djava.library.path=" + self.path)
@@ -91,12 +92,13 @@ class bmcRemote:
         
     def do_action(self, pwr_action: int, bios_action: int):
         powerRequest = Request(powerUrl.format(self.server, pwr_action, bios_action))
-        powerRequest.add_header("Cookie", "SessionCookie=%s" % self.sessionCookie)
+        powerRequest.add_header("X-Csrf", f"{self.csrfToken}")
+        powerRequest.add_header("Cookie", f"SessionCookie={self.sessionCookie};")
         urlopen(powerRequest)
         
 class bmcGUI:
     def __init__(self, args) -> None:
-        bmc = None
+        self.bmc = None
         self.root = Tk()
         self.root.title('Old iKVM')
         self.server_input = StringVar(self.root)
@@ -146,9 +148,8 @@ class bmcGUI:
     def initbmc(self):
         try:
             self.bmc = bmcRemote(self.server_input.get())
-            self.bmc.getsession(self.user_input.get(), self.pass_input.get())
+            self.bmc.getSession(self.user_input.get(), self.pass_input.get())
             self.bmc.update_jars()
-            self.lb_pass
             for i in [ self.lb_server, self.lb_username, self.lb_pass, self.bt_session ]:
                 i.state(["disabled"])
             for i in [ self.jv_button, self.bt_pwr_off, self.bt_pwr_on, self.bt_reset, self.bt_reset_bios, self.bt_shutdown ]:
@@ -170,7 +171,7 @@ if __name__ == "__main__":
     parser.add_argument('-u', '--user')
     parser.add_argument('-p', '--password')
     parser.add_argument('-j', '--java')
-    args = parser.parse_args()
-    if args.java is not None:
-        java_bin=args.java
-    gui = bmcGUI(args)
+    cmd_args = parser.parse_args()
+    if cmd_args.java is not None:
+        java_bin=cmd_args.java
+    gui = bmcGUI(cmd_args)
