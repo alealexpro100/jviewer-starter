@@ -41,9 +41,12 @@ class bmcRemote:
         self.sessionCookie = re.search(
             "'SESSION_COOKIE' : '([a-zA-Z0-9]+)'", loginResponse
         ).group(1)
-        self.csrfToken = re.search(
-            "'CSRF_TOKEN' : '([a-zA-Z0-9]+)'", loginResponse
-        ).group(1)
+        try:
+            self.csrfToken = re.search(
+                "'CSRF_TOKEN' : '([a-zA-Z0-9]+)'", loginResponse
+            ).group(1)
+        except AttributeError:
+            pass
 
     def update_jars(self):
         base = jarBase.format(self.server)
@@ -100,7 +103,8 @@ class bmcRemote:
 
     def do_action(self, pwr_action: int, bios_action: int):
         powerRequest = Request(powerUrl.format(self.server, pwr_action, bios_action))
-        powerRequest.add_header("X-Csrf", f"{self.csrfToken}")
+        if self.csrfToken is not None:
+            powerRequest.add_header("X-Csrf", f"{self.csrfToken}")
         powerRequest.add_header("Cookie", f"SessionCookie={self.sessionCookie};")
         urlopen(powerRequest)
 
